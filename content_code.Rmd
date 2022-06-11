@@ -1,0 +1,400 @@
+---
+title: "Survey Data Report"
+author: "Kenna Reagan"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r include=FALSE}
+# load libraries
+library(gsheet) # to load data from the google sheet
+library(tidyverse)
+library(dplyr)
+library(lubridate) # format date from chr to date
+library(ggplot2) # create graphics 
+library(wesanderson)
+
+```
+
+
+```{r include=FALSE}
+# import data from google sheets, convert to tibble, save to a variable
+url1 <- 'https://docs.google.com/spreadsheets/d/1Jwj-H3T28nySYGttAwA_9bUE_kKRR2jq/edit#gid=1872698168'
+url2 <-'https://docs.google.com/spreadsheets/d/1Jwj-H3T28nySYGttAwA_9bUE_kKRR2jq/edit#gid=771323801'
+survey <- gsheet2tbl(url1)
+org <- gsheet2tbl(url2)
+
+# print the tibbles 
+survey
+org
+
+# check the dimensions of each tibble for comparison after joining them
+dim(survey)
+dim(org)
+```
+
+```{r include=FALSE}
+# join org data on 'Primary Facilitator' coloumn so that we have the org data for the primary facilitator
+data <- left_join(survey, org, by = c("Primary Facilitator" = "Faciliator ID")) 
+
+# check the dimensions to make sure we didn't lose data
+dim(data)
+data
+data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
+
+# replace null values with 0 or 'N/A'
+data$`Likely to recommend Instruction Partners`[is.na(data$`Likely to recommend Instruction Partners`)]<- 0
+data[is.na(data)] <- "N/A"
+```
+
+```{r include=FALSE}
+# get counts of each answer, grouped by date
+Q1 <- data %>% group_by(Date,`Clear about change we seek`) %>% summarise(var_counts = n())
+Q2 <- data %>% group_by(Date,`Clear about roles and responsibilities`) %>% summarise(var_counts = n())
+Q3 <- data %>% group_by(Date,`Confident plan will achieve goals`) %>% summarise(var_counts = n())
+Q4 <- data %>% group_by(Date,`Feel more equipped`) %>% summarise(var_counts = n())
+Q5 <- data %>% group_by(Date,`Equipped and supported`) %>% summarise(var_counts = n())
+Q6 <- data %>% group_by(Date,`Understand state of instruction`) %>% summarise(var_counts = n())
+Q7 <- data %>% group_by(Date,`Valuable use of my time:`) %>% summarise(var_counts = n())
+
+# get monthly averages for how likely people are to recommend Instruction Partners
+Q8 <- filter(data, `Likely to recommend Instruction Partners` > 0) %>%
+        mutate(month = floor_date(Date, "month")) %>%
+           group_by(month) %>%
+           summarize(avg = mean(`Likely to recommend Instruction Partners`))
+```
+### Overall Performance
+
+Overall, the performance is high, with the monthly averages remaining above 8. The highest averages align with the beginning of the school year, while the lowest averages appear during winter break.
+
+```{r echo=FALSE, warning=FALSE}
+# create time series plot 
+ggplot(Q8 ,aes(x=month,y=avg)) + geom_line(color="#1D549E",size=1) + geom_point(color="#1D549E",size=2) + theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED"))+ ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+
+
+```{r include=FALSE}
+# remove all 0's (non-answers), sort by month, get the mean for each month
+Q8 <- filter(data, `Likely to recommend Instruction Partners` > 0) %>%
+  mutate(month = floor_date(Date, "month")) %>%
+           group_by(month, Team) %>%
+           summarize(avg = mean(`Likely to recommend Instruction Partners`))
+
+Q8
+```
+
+## Team Performance {.tabset}
+Team 8 was an outlier. They hosted one event in September and were given a rating of 2. Apart from that, Team 5 had the lowest average performance of 6 in January. However, they also had the highest average performance of 10 in December. Team performances mirrored that of the overall monthly averages.
+<br />
+
+### Team 1
+```{r echo=FALSE, warning=FALSE}
+# plot the monthly mean for Team 1
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 1"),color="#E69F00", size=1) + geom_point(data=subset(Q8,Team=="Team 1"),size=2,color="#E69F00")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+### Team 2
+```{r echo=FALSE, warning=FALSE}
+# plot the montly mean for Team 2
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 2"),size=1,color="#56B4E9") + geom_point(data=subset(Q8,Team=="Team 2"),size=2,color="#56B4E9")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+### Team 3
+```{r echo=FALSE, warning=FALSE}
+# plot the monthly mean for Team 3
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 3"),size=1,color="#009E73")+ geom_point(data=subset(Q8,Team=="Team 3"),size=2,color="#009E73")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+### Team 4
+```{r echo=FALSE, warning=FALSE}
+# plot the monthly mean for Team 4
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 4"),size=1,color="#F0E442")+ geom_point(data=subset(Q8,Team=="Team 4"),size=2,color="#F0E442")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+### Team 5
+```{r echo=FALSE, warning=FALSE}
+# plot the montly means for Team 5
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 5"),size=1,color="#0072B2")+ geom_point(data=subset(Q8,Team=="Team 5"),size=2,color="#0072B2")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+
+### Team 6
+```{r echo=FALSE, warning=FALSE}
+# plot the montly mean for Team 6
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 6"),size=1,color="#D55E00")+ geom_point(data=subset(Q8,Team=="Team 6"),size=2,color="#D55E00")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+
+
+### Team 7
+```{r echo=FALSE, warning=FALSE}
+# plot the montly mean for Team 7
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 7"),size=1,color="#CC79A7")+ geom_point(data=subset(Q8,Team=="Team 7"),size=2,color="#CC79A7")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+
+### Team 8
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# plot the montly mean for Team 8
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 8"),size=1,color="#336633")+ geom_point(data=subset(Q8,Team=="Team 8"),size=2,color="#336633")+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+
+### Team 9
+```{r echo=FALSE, warning=FALSE}
+# plot the montly mean for Team 9
+ggplot(Q8, aes(month, avg)) + geom_line(data=subset(Q8,Team=="Team 9"),size=1) + geom_point(data=subset(Q8,Team=="Team 9"),size=2)+ theme(panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Monthly 'Likely to recommend Instruction Partners' Average") +xlab("Date") + ylab("'Likely to recommend Instruction Partners' Average") 
+```
+
+
+## Survey Question Responses {.tabset} 
+Overall, there's a high rate of agreement among attendees for each question. Teachers are less likely than administrators to strongly agree with a question. While teachers have higher rates of answers below strongly agree, administrators are more likely to disagree with a question. Most notably, teachers seem less clear about roles and responsibilities, the change we seek, and they feel less equipped after the event. 
+<br />
+
+### Clear about change we seek
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q1 <- filter(data, `Clear about change we seek` != "N/A") %>% group_by(`Submitter Role`, `Clear about change we seek`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q1, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q1, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q1, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q1, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q1, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q1, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q1, `Submitter Role` == "Teacher")
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q1, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q1 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q1
+```
+
+```{r echo=FALSE, warning=FALSE}
+# get color palette
+color_palette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+# reorder answers
+new_order1  <-factor(Q1$`Clear about change we seek`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+# plot results
+ggplot(Q1, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order1),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Clear about change we seek") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
+### Clear about roles and responsibilities
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q2 <- filter(data, `Clear about roles and responsibilities` != "N/A") %>% group_by(`Submitter Role`, `Clear about roles and responsibilities`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q2, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q2, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q2, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q2, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q2, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q2, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q2, `Submitter Role` == "Teacher") 
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q2, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q2 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q2
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+new_order2  <-factor(Q2$`Clear about roles and responsibilities`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+ggplot(Q2, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order2),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Clear about roles and responsibilities") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
+### Confident plan will achieve goals
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q3 <- filter(data, `Confident plan will achieve goals` != "N/A") %>% group_by(`Submitter Role`, `Confident plan will achieve goals`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q3, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q3, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q3, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q3, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q3, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q3, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q3, `Submitter Role` == "Teacher") 
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q3, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q3 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q3
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+new_order3  <-factor(Q3$`Confident plan will achieve goals`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+ggplot(Q3, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order3),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Confident plan will achieve goals") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
+### Feel more equipped
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q4 <- filter(data, `Feel more equipped` != "N/A") %>% group_by(`Submitter Role`, `Feel more equipped`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q4, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q4, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q4, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q4, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q4, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q4, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q4, `Submitter Role` == "Teacher") 
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q4, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q4 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q4
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+new_order4  <-factor(Q4$`Feel more equipped`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+ggplot(Q4, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order4),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Feel more equipped") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
+### Equipped and supported
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q5 <- filter(data, `Equipped and supported` != "N/A") %>% group_by(`Submitter Role`, `Equipped and supported`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q5, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q5, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q5, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q5, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q5, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q5, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q5, `Submitter Role` == "Teacher") 
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q5, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q5 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q5
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+new_order5  <-factor(Q5$`Equipped and supported`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+ggplot(Q5, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order5),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Equipped and supported") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
+### Understand state of instruction
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q6 <- filter(data, `Understand state of instruction` != "N/A") %>% group_by(`Submitter Role`, `Understand state of instruction`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q6, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q6, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q6, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q6, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q6, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q6, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q6, `Submitter Role` == "Teacher") 
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q6, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q6 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q6
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+new_order6  <-factor(Q6$`Understand state of instruction`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+ggplot(Q6, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order6),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Understand state of instruction") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
+### Valuable use of my time
+```{r include=FALSE}
+# filter out non-answers, get counts of each answer
+Q7 <- filter(data, `Valuable use of my time:` != "N/A") %>% group_by(`Submitter Role`, `Valuable use of my time:`) %>% summarise(var_counts = n())
+
+# get percentage of each answer for each submitter role
+asst_prin <- filter(Q7, `Submitter Role` == "Assistant Principal") 
+asst_prin$var_per <- with(asst_prin, var_counts/sum(var_counts))
+dist_lead <- filter(Q7, `Submitter Role` == "District Leader / CMO Leader")
+dist_lead$var_per <- with(dist_lead, var_counts/sum(var_counts))
+inst_coach <- filter(Q7, `Submitter Role` == "Instructional Coach") 
+inst_coach$var_per <- with(inst_coach, var_counts/sum(var_counts))
+other <- filter(Q7, `Submitter Role` == "Other") 
+other$var_per <- with(other, var_counts/sum(var_counts))
+principal <- filter(Q7, `Submitter Role` == "Principal") 
+principal$var_per <- with(principal, var_counts/sum(var_counts))
+super <- filter(Q7, `Submitter Role` == "Superintendent / CMO Executive Director") 
+super$var_per <- with(super, var_counts/sum(var_counts))
+teacher <- filter(Q7, `Submitter Role` == "Teacher") 
+teacher$var_per <- with(teacher, var_counts/sum(var_counts))
+teach_lead <- filter(Q7, `Submitter Role` == "Teacher Leader") 
+teach_lead$var_per <- with(teach_lead, var_counts/sum(var_counts))
+Q7 = rbind(asst_prin,dist_lead,inst_coach,other,principal,super,teacher,teach_lead)
+Q7
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+new_order7  <-factor(Q7$`Valuable use of my time:`, levels=c("Strongly Disagree", "Disagree","Somewhat Disagree", "Neutral","Somewhat Agree","Agree","Strongly Agree"))
+
+ggplot(Q7, aes(`Submitter Role`, var_per), ) +   
+  geom_bar(aes(fill = new_order7),position = position_dodge2(width = 5, preserve = "single"), stat="identity") + theme(plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(angle = 60, hjust = 1),panel.background = element_rect(fill="#F0EDED",color="#F0EDED")) + ggtitle("Valuable use of my time") +xlab("Submitter Roles") + ylab("Percentage") + guides(fill=guide_legend(title="Agreement")) + scale_fill_manual(values=color_palette)
+```
+
